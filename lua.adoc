@@ -1,0 +1,219 @@
+= Civil Networks Lua Programming Standards
+:source-highlighter: highlight.js
+:toc:
+Civil Networks Development Team
+
+== Overview
+Civil Networks is a very large network. Writing clean, maintainable, and extendable code is the #1 priority for all of Civil Network's developers.
+
+== Remember
+Here's a list of things you need to remember when making addons for Civil Networks:
+
+. We have Code Review, don't write code you don't want other people seeing
+. We have `sv_allowdownload` disabled. In most cases, resource.AddFile won't do anything. Ask Ventz to have the content added to a content pack.
+
+== Addon Structure
+Structuring addons in a way that allows other people to follow what's going on and make good guesses about where functionality is implimented allows other developers to work better.
+
+=== Naming Files
+Files should be named with a prefix of the state followed by a single noun or verb describing what the file contains.
+
+Prefixes to use for files:
+
+* `sh_`: Shared Files
+* `sv_`: Server Files
+* `cl_`: Client Files
+
+=== File Structure
+Addon files are organised into a central folder that has the addon's name. Addons should try not to have more than one folder directly inside the lua directory.
+
+Here's an example:
+[source]
+----
+📂 /lua/autorun:
+    📄 sh_addon_init.lua <1>
+📂 /lua/my_addon: <2>
+    📂 /lua/my_addon/client: <3>
+        📄 cl_render.lua
+        📄 cl_hud.lua
+        📄 cl_net.lua
+    📂 /lua/my_addon/server:
+        📄 sv_net.lua
+    📄 sh_config.lua
+    📄 sv_config.lua <4>
+----
+<1> If you need a server or client specific autorun, use autorun/(client/server)/(cl/sv)_addon_init.lua
+<2> This is the addon's directory, you should not create multiple folders directly inside the lua path for your addon
+<3> Files that are specific to the server or client should be in folders. The only files in the root of you addon's lua folder should be
+<4> Server configuration files are useful to store sensitive information. Never store API Keys in shared files unless clinets should access them.
+
+TIP: To maintain readability (and just generaly making things easier to find), try not to encapsulate complicated addons in a small number of files. More files is usualy better, allowing for people to find things easier.
+
+=== Global Tables & Variables
+
+==== Avoid Global Variables
+Global variables can lead to unexpected behavior, conflicts, and bugs in the Lua state. To maintain clean and maintainable code, it is recommended to minimize the use of global variables. They should only be used in specific cases, such as when creating an addon table.
+
+If you need global data storage, consider using a dedicated addon table to encapsulate your global data. This helps prevent naming conflicts with other addons and keeps your variables organized.
+
+Here's a bad example:
+[source, lua]
+----
+-- These are declared as global variables, even though they're only used for one addon
+RequiredPolice = 50
+RequiredCitizens = 10
+----
+
+Here's a good example:
+[source, lua]
+----
+-- Everything is encapsulated inside the MyAddon table
+MyAddon = MyAddon or {}
+MyAddon.Config = {}
+
+MyAddon.Config.RequiredPolice = 50
+MyAddon.Config.RequiredCitizens = 10
+----
+
+==== _G
+The _G table should never be used except in very specific cirsumstances, such as detouring. Never use this without a good reason. Your code review will fail if you use _G just because you felt like it.
+
+=== Naming Conventions
+
+Use the following naming contentions throughout the Civil Network's codebase:
+
+* PascalCase for addon tables (`MyAddon`, `CNAdvent`, `VOrgs3`)
+* PascalCase when defining metatables (`ply:GetData()`)
+* PascalCase when defining global functions (`MyAddon.Create()`, `MyAddon.NewObject()`, `MyAddon.ClassName:New()`)
+* camelCase for local variables (`required`, `numRemaining`, `count`)
+* camelCase for table keys (`MyAddon.required`, `CNAdvent.config`, `VOrgs3.config.numHouses`)
+* camelCase for local functions (`doRefresh()`, `doCreate()`)
+* camelCase when defining variables attached to entities (`ent.isSpawned`, `ent.lastOwnedBy`, `ply.isNewPlayer`)
+
+=== Modularity
+Modular addons are good addons, and writing modular code is also a good practice. For example, if you're writing a logging addon, you should let other people add logs relatively easily.
+
+A good way of achieving this is hotloading all the files inside a directory on startup, and running their code.
+
+Imagine a file structure like this:
+[source]
+----
+📂 /lua/autorun:
+    📄 sh_logaddon_init.lua <1>
+📂 /lua/log_addon: <2>
+    📂 /lua/log_addon/modules/logging: <3>
+        📄 sh_whitelist.lua
+        📄 sh_darkrp.lua
+        📄 sh_sandbox.lua
+        📄 sh_weapons.lua
+        📄 sh_admins.lua
+----
+
+Upon server start, `logaddon` will load the contents of these files.
+
+Modularity is often achieved by using metatables as builders. This allows a module file to look something like this, ignoring differences between addons:
+[source, lua]
+----
+local module = LogAddon:NewLog()
+
+module:SetName("Admin Logging")
+module:SetCategory(Color(255, 75, 75))
+
+module:AddHook("InitPostEntity", function()
+    print("I was called :D")
+end)
+
+module:Register()
+----
+
+== Writing Code
+
+=== Never include semicolons after lines in Lua code
+
+Bad:
+[source,lua]
+----
+local a = "corn";
+print(a);
+----
+
+Good:
+[source,lua]
+----
+local a = "corn"
+print(a)
+----
+
+=== Use != and continue in GLua
+When writing GLua code, avoid using `~=` and the `goto` statement. Prefer using the glua alternatives.
+
+Bad:
+[source,lua]
+----
+for k, v in player.Iterator() do
+    if (v:Nick() ~= "Apple") then
+        goto continue
+    end
+
+    print("HE'S HERE!!")
+    ::continue::
+end
+----
+
+Good:
+[source,lua]
+----
+for k, v in player.Iterator() do
+    if (v:Nick() != "Apple") then
+        continue
+    end
+
+    print("HE'S HERE!!")
+end
+----
+
+=== Avoid defining functions with colons unless self is required
+When defining a member table function for your addon or whatever, avoid using the colon unless you are using `self` in your function.
+
+Bad:
+[source,lua]
+----
+function MyAddon:DoThings()
+    print("Did the thing")
+end
+----
+
+Good:
+[source,lua]
+----
+function MyAddon.DoThings()
+    print("Did the things")
+end
+
+function MyAddon:CreateObject()
+    self.objects = self.objects + 1 <1>
+    print("Did the things")
+end
+----
+<1> This is allowed because we use self in this function.
+
+=== Always define metatable meta functions with colons
+When defining a metatable function on anything, including players and entities, use colons.
+
+Bad:
+[source,lua]
+----
+function plyMeta.BanForAdminAbuse()
+
+end
+----
+
+Good:
+[source,lua]
+----
+function plyMeta:BanForAdminAbuse()
+
+end
+----
+
+=== Write loops using (k, v), (i, j), (a, b)
