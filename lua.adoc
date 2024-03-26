@@ -216,4 +216,237 @@ function plyMeta:BanForAdminAbuse()
 end
 ----
 
-=== Write loops using (k, v), (i, j), (a, b)
+=== Write loops using (k, v), (i, j), (a, b), ...
+When writing loops in your code, always use the following order of loops:
+
+. k, v
+. i, j
+. a, b
+. m, n
+. o, p
+
+WARNING: Using nested loops is discouraged, only use nested loops over you really need to. If you weite enough nested loops to require more options then the ones provided above, please contact your local head developer and tell them you're resigning.
+
+Bad:
+[source,lua]
+----
+for v, k in ipairs(tab) do
+
+end
+
+for i, k in ipairs(tab) do
+    for k, v in ipairs(v) do
+
+    end
+end
+----
+
+Good:
+[source,lua]
+----
+for k, v in ipairs(tab) do
+
+end
+
+for k, v in ipairs(tab) do
+    for i, j in ipairs(v) do
+        print(k, i)
+    end
+end
+----
+
+==== Loop iterator variables with wierd values
+If the value of your loop iterator variable isn't immediately obveous or you're writing crazy nested loops, give the variables good names.
+
+=== Include a comma after the last member of an inline defined table
+When defining tables in Lua, always include the trailing comma. This includes inline defined tables.
+
+Bad:
+[source,lua]
+----
+local players = {1, 2, 3}
+----
+
+Good:
+[source,lua]
+----
+local players = {1, 2, 3, 4,}
+----
+
+=== Avoid variable shorthand
+Avoid using shorthand or abreviated names for variables unless the name is common and very obveous.
+
+Bad:
+[source,lua]
+----
+local pTbl = {}
+local tells = {}
+local x = 5
+local y = 10
+----
+
+Good:
+[source,lua]
+----
+local playerTable = {}
+local playersToTell = {}
+local numPlayersOnline = 5
+local numPlayersReserved = 10
+----
+
+=== Prefer positive checks
+When writing an expression for a boolean condition, tend to use positive checks rather than negative checks where possible, E.G prefer `if (myValue) then else end` over `if (not myValue) then else end`
+
+Bad:
+[source,lua]
+----
+if (not myValue) then
+    return
+else
+    print("Yipee!")
+end
+----
+
+Good:
+[source,lua]
+----
+-- you should use a guard clause here anyway
+if (myValue) then
+    print("Yipee!")
+else
+    return
+end
+----
+
+=== Guard Clauses
+Guard clauses allow you to exit out of a function early, and are incredibly useful tools for checking lots of information without needing to increast indentation for the rest of your code.
+
+If you have many guard clauses one-after another that all result in the same thing happening (for example returning), just combine them all into one if-statement.
+
+Bad:
+[source,lua]
+----
+if (myValue and otherValue and otherValue == "apple") then
+    print("i did a thing")
+else
+    return
+end
+
+funciton doThing(val1, val2, val2)
+    if (val1 != "okie") then
+        return
+    end
+    if (val2 != "dokie") then
+        return
+    end
+    if (val3 != "artichoke") then
+        return
+    end
+
+    print("did a thing!")
+end
+----
+
+Good:
+[source,lua]
+----
+if (not myValue or not otherValue or not otherValue == "apple") then
+    return
+end
+
+print("I did a thing")
+
+funciton doThing(val1, val2, val2)
+    if (val1 != "okie" or val2 != "dokie" or val3 != "artichoke") then
+        return
+    end
+
+    print("did a thing!")
+end
+----
+
+=== Indentation
+All code should be properly indented with tabs the width of 4 charaters. Only indented code should be avoided, which you may have heard called the arro anti-pattern.
+
+For example, never do this:
+[source,lua]
+----
+if (thing) then
+    if (otherThing) then
+        if (otherThingAndOtherThing) then
+            if (x) then
+                if (y) then
+                    print("okie")
+                end
+            end
+        end
+    end
+end
+----
+
+=== If statements & loops
+An if statement must never be written on one line. For example a simple if statement to early out of a function must be written on three lines:
+[source,lua]
+----
+if (true) then
+    return
+end
+----
+
+If statements, loops, function calls and object constructors must be written with braces, with no spaces padding the inside. If statements and while loops must also have spaces padding the outer braces, for example:
+[source, lua]
+----
+local a = 0
+while (a < 10) do
+	a = a + 1
+end
+----
+
+=== Magic Numbers
+Avoid magic numbers, or numbers that exist in the codebase with no explanation of where they came from. For example, if you're doing a calculation like:
+
+`local repToTake = math.clamp(rep*343/2, 43)`
+
+Consider adding comments that explain where the random nubers come from, or put the numbers into variables with good names.
+
+== Networking & Security
+When creating addons which allow clients to send net messages to the server, it is vital to carefully consider all security implications and potential attack vectors for exploiters. A simple example would be a net message allowing a superadmin to perform an administration or config task on the server. Net messages such as these must always check the player is allowed to use the message. If a client attempts to use a net message which they should not have access to, you have the choice whether to send a notification explaining why the net message can't be used, or to silently fail if you believe the client should not know.
+
+=== Never trust the client
+When writing a server net message callback, it is vital to remember that the client can never be trusted. You may expect some certain data to be written to the message by the client, and it may be easy to assume this information will be what you expect, however it is important to know that a client can potentially be writing whatever they want to a net message, be that on purpose or accidental. When receiving data from a client you should always validate every aspect of the data, including but not limited to:
+
+* Does the data exist
+* Is the data valid (is the value allowed)
+* Is the data within the expected range
+* If the data too large
+* Is the value possible
+
+
+==== Targets
+When accepting a network message that sends an entity, be sure to check if the entity is the right type. Also consider checking if the player is close enough to trigger the message normaly.
+
+==== Notifications
+For net messages which run in response to user input such as a UI button, entity use etc, a notification should be displayed to the player. If the operation is successful, you should notify them of the success if it is not already apparent to them, if the operation fails a reason for the failure should be displayed unless you believe that could be a security risk.
+
+== Saving Data
+
+=== Player Data
+All player data which is saved or loaded such as levels, stats and other permanent data must be saved to the MySQL database. An exception can be made if the data is **very** unimportant, temporary or otherwise can't be stored in the database properly.
+
+=== Map Data
+Persistent map data for example perma props or saved entities must be saved in a data file inside the servers data folder. When saving map data, the data must be saved in a folder or file with the name of the map it was saved for. This is to allow us to migrate data to new map versions by changing the name of the file, and to save different data on different maps.
+
+Example of good paths for map data:
+
+* data/addon_name/rp_mapname_v1.txt
+* data/addon_name/rp_mapname_v1/file1.txt
+
+=== SQL Queries
+Every SQL query will contribute to our server bandwidth bill, which can easily become out of hand. SQL queries should be done as little as possible in order to reduce bandwidth usage, only make SQL queries when fetching initial data for something or when updating information. If data is updated very often, try reducing the amount of queries done by deferring any saving to a later date, perhaps saving only once every few minutes rather than every time the data is changed. Finally, ensure you are only writing data to SQL that has changed, and avoid updating any values which you know have not changed.
+
+== Documenting Code
+
+=== Comments
+Comments should be written to explain sections of code if the purpose or behavior of the code might not be immediately obvious to someone else who is reading it. Prefer to use – to begin comments rather than //. Comments can be lengthy, however, you should avoid writing excessive amounts of comments all over code unless it is absolutely necessary.
+
+Usually, good variable names can behave as comments themselves simply by making the purpose of a variable immediately clear and apparent. Every time you write a comment, ask yourself first: can I avoid needing this comment by simply giving some variables better names?
